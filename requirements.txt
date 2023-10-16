@@ -1,0 +1,12 @@
+# Utilities
+os
+re
+json
+shutil
+requests
+datetime
+zipfile
+
+# DB related
+pandas
+duckdb
