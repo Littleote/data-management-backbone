@@ -1,0 +1,20 @@
+{
+    "URL": "https://www.idescat.cat/poblacioestrangera/?b=6&f=ssv",
+    "read": {
+        "skiprows": 4,
+        "encoding": "iso8859_3",
+        "sep": ";",
+        "decimal": ","
+    },
+    "rename": {
+        "Categoria": "Municipi",
+        "(1) Població": "Població",
+        "Població estrangera. % sobre (1)": "Percentatge_per_municipi",
+        "Població estrangera. Total": "Total",
+        "Població estrangera. % vert.": "Població_sobre_global"
+    },
+    "keys": [
+        "Municipi"
+    ],
+    "keep": "latest"
+}

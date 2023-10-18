@@ -1,0 +1,16 @@
+{
+    "URL": "https://analisi.transparenciacatalunya.cat/api/views/fmpi-m3ni/rows.csv?accessType=DOWNLOAD",
+    "read": {},
+    "rename": {
+        "ORGANITZACIÓ / BISBAT": "ORGANITZACIÓ",
+        "CODI MUNICIPI": "CODI_MUNICIPI",
+        "CODI COMARCA": "CODI_COMARCA",
+        "CODI PROVINCIA": "CODI_PROVINCIA",
+        "ANY": "DATA"
+    },
+    "keys": [
+        "ID_ENTITAT",
+        "DATA"
+    ],
+    "keep": "latest"
+}

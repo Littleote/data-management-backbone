@@ -1,0 +1,16 @@
+{
+    "URL": "https://www.ine.es/jaxi/files/_px/es/csv_bdsc/t20/e243/e05/a1991/l0/00008.csv_bdsc?nocab=1",
+    "filename": "out.csv",
+    "read": {
+        "sep": ";"
+    },
+    "rename": {
+        "Lugar de procedencia de la última migración": "Origen"
+    },
+    "keys": [
+        "Municipios",
+        "Sexo",
+        "Origen"
+    ],
+    "keep": "latest"
+}
