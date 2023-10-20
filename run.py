@@ -15,15 +15,15 @@ def check_folders(folder):
             os.mkdir(zone)
 
 def parse(args):
-    argParser = argparse.ArgumentParser(
+    arg_parser = argparse.ArgumentParser(
         description='Data management pipeline',
         epilog='by David Candela and Andreu Giménez')
-    action = argParser.add_mutually_exclusive_group(required=True)
+    action = arg_parser.add_mutually_exclusive_group(required=True)
     action.add_argument("--fetch", nargs='?', const=-1, metavar="DATASET"
                         , help="Fetch the latest version of a dataset")
-    action.add_argument("--new", action="store_true"
-                        , help="Create a new dataset pipeline")
-    return argParser.parse_args(args)
+    action.add_argument("--new", choices=["pipeline", "table"]
+                        , help="Create a new dataset pipeline or a new exploitation table")
+    return arg_parser.parse_args(args)
 
 def fetch(pipeline, folder):
     pipelines = os.listdir(os.path.join(folder, "dataset_info"))
@@ -36,8 +36,8 @@ def fetch(pipeline, folder):
         pipeline = input("Select a pipeline's index: ")
         try:
             pipeline = int(pipeline)
-            assert 0 < pipeline and pipeline <= len(pipelines)
-        except:
+            assert 0 < pipeline <= len(pipelines)
+        except (AssertionError, ValueError):
             print("Invalid index")
             return
         pipeline = pipelines[pipeline - 1]
@@ -49,21 +49,30 @@ def fetch(pipeline, folder):
     # formatted(pipeline, folder)
     # trusted(pipeline, folder)
     # exploitation(folder)
+
     
 def new_pipeline(folder):
     pass
+
+
+def new_table(folder):
+    pass
+
 
 def _main(args, folder):
     args = parse(args)
     check_folders(folder)
     if args.fetch is not None:
         fetch(args.fetch, folder)
-    elif args.new:
-        new_pipeline(folder)
+    elif args.new is not None:
+        if args.new == "pipeline":
+            new_pipeline(folder)
+        elif args.new == "table":
+            new_table(folder)
     
 
 if __name__ == "__main__":
     argument_list = sys.argv[1:]
-    folder = os.path.dirname(__file__)
-    _main(argument_list, folder)
+    file_folder = os.path.dirname(__file__)
+    _main(argument_list, file_folder)
     
