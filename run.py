@@ -2,9 +2,16 @@
 """
 @authors: david candela & andreu giménez
 """
+
 import os
 import sys
+import json
 import argparse
+
+import landing
+import formatted
+import trusted
+import exploitation
 
 ZONES = ["landing", "formatted", "trusted", "exploitation", "dataset_info"]
 
@@ -13,6 +20,7 @@ def check_folders(folder):
     for zone in ZONES:
         if zone not in directories:
             os.mkdir(zone)
+
 
 def parse(args):
     arg_parser = argparse.ArgumentParser(
@@ -24,6 +32,7 @@ def parse(args):
     action.add_argument("--new", choices=["pipeline", "table"]
                         , help="Create a new dataset pipeline or a new exploitation table")
     return arg_parser.parse_args(args)
+
 
 def fetch(pipeline, folder):
     pipelines = os.listdir(os.path.join(folder, "dataset_info"))
@@ -45,12 +54,19 @@ def fetch(pipeline, folder):
         if not pipeline in pipelines:
             print(f"{pipeline} pipeline doesn't exist")
             return
-    # landing(pipeline, folder)
-    # formatted(pipeline, folder)
-    # trusted(pipeline, folder)
-    # exploitation(folder)
+    working_directory = os.getcwd()
+    os.chdir(folder)
+    with open(os.path.join(folder, "dataset_info", pipeline + '.json'),
+              mode='r', encoding='utf-8') as handler:
+        pipeline_info = json.load(handler)
+    landing.to_landing(pipeline_info, pipeline)
+    formatted.to_formatted(pipeline_info, pipeline)
+    trusted.to_trusted(pipeline_info, pipeline)
+    # trusted.clean_data(pipeline_info, pipeline)
+    exploitation.to_exploitation()
+    os.chdir(working_directory)
 
-    
+
 def new_pipeline(folder):
     pass
 
@@ -69,10 +85,9 @@ def _main(args, folder):
             new_pipeline(folder)
         elif args.new == "table":
             new_table(folder)
-    
+
 
 if __name__ == "__main__":
     argument_list = sys.argv[1:]
     file_folder = os.path.dirname(__file__)
     _main(argument_list, file_folder)
-    
