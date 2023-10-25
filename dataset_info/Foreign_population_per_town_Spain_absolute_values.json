@@ -12,5 +12,11 @@
         "Sexo",
         "Origen"
     ],
-    "keep": "latest"
+    "keep": "latest",
+    "transformations": [
+        "UPDATE {dataset} SET Total = 0 WHERE Total ILIKE '..'",
+        "UPDATE {dataset} SET Total = replace(Total, '.', '')",
+        "ALTER TABLE {dataset} ALTER Total TYPE INTEGER",
+        "DELETE FROM {dataset} WHERE Sexo NOT ILIKE 'Ambos Sexos'"
+    ]
 }

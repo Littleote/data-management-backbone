@@ -27,8 +27,11 @@ def get_schema(target, rename, keys):
         discarded = set(rename.keys())
         variables = (variables - discarded).union(
             [rename[name] for name in variables.intersection(discarded)])
-        assert all(map(lambda key: key in variables, keys)), \
-            f"Not all keys appear in the dataset \n keys: {keys} \n variables: {variables}"
+        if not all(map(lambda key: key in variables, keys)):
+            print("Not all keys appear in the dataset")
+            print(f"keys: {keys}")
+            print(f"variables: {variables}")
+            raise RuntimeError()
 
         # Get variable types
         var_info = {}
@@ -58,14 +61,40 @@ def join_versions(target, table_columns, table_keys, rename, keep_latest):
         table_names.sort(reverse=keep_latest)
 
         # Create new table
-        con.execute(f"CREATE OR REPLACE TABLE {target}({table_columns}, PRIMARY KEY({table_keys}))")
+        try:
+            con.execute(f"CREATE OR REPLACE TABLE {target}({table_columns}, PRIMARY KEY({table_keys}))")
+        except (duckdb.CatalogException, duckdb.ParserException) as err:
+            comma_line_tab = ',\n\t'
+            print("Unable to generate joint table:")
+            print("CREATE OR REPLACE TABLE {target}(")
+            print(f"\t{table_columns.replace(', ', comma_line_tab)},")
+            print(f"\tPRIMARY KEY({table_keys})")
+            print(")")
+            print("Causes:")
+            for arg in err.args:
+                print(arg)
+            raise RuntimeError() from err
 
         # Join new tables
         for name in table_names:
             variables = list(table_info.loc[name, 'column_names'])
             new_variables = [rename.get(name, name) for name in variables]
             renaming = ", ".join(f"#{i + 1} AS {new}" for i, new in enumerate(new_variables))
-            con.execute(f"INSERT OR IGNORE INTO {target} SELECT {renaming} FROM source.{name}")
+            try:
+                con.execute(f"INSERT OR IGNORE INTO {target} SELECT {renaming} FROM source.{name}")
+            except (duckdb.CatalogException, duckdb.ParserException) as err:
+                print("Unable to insert data into joint table")
+                print("Causes:")
+                for arg in err.args:
+                    print(arg)
+                raise RuntimeError() from err
+
+
+def clean_data(pipeline, target):
+    queries = pipeline.get('transformations', [])
+    with duckdb.connect(database=db_trusted, read_only=False) as con:
+        for query in queries:
+            con.execute(query.format(dataset=target))
 
 
 def to_trusted(pipeline, target):

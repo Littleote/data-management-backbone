@@ -12,5 +12,8 @@
         "ID_ENTITAT",
         "DATA"
     ],
-    "keep": "latest"
+    "keep": "latest",
+    "transformations": [
+        "DELETE FROM {dataset} WHERE DATA != 2022"
+    ]
 }

@@ -59,11 +59,20 @@ def fetch(pipeline, folder):
     with open(os.path.join(folder, "dataset_info", pipeline + '.json'),
               mode='r', encoding='utf-8') as handler:
         pipeline_info = json.load(handler)
-    landing.to_landing(pipeline_info, pipeline)
-    formatted.to_formatted(pipeline_info, pipeline)
-    trusted.to_trusted(pipeline_info, pipeline)
-    # trusted.clean_data(pipeline_info, pipeline)
-    exploitation.to_exploitation()
+    try:
+        print("Fetching dataset               ", end="\r")
+        landing.to_landing(pipeline_info, pipeline)
+        print("Formatting dataset             ", end="\r")
+        formatted.to_formatted(pipeline_info, pipeline)
+        print("Joining dataset versions       ", end="\r")
+        trusted.to_trusted(pipeline_info, pipeline)
+        print("Cleaning dataset               ", end="\r")
+        trusted.clean_data(pipeline_info, pipeline)
+        print("Generaiting exploitation tables", end="\r")
+        exploitation.to_exploitation()
+        print("Done                           ", end="\n")
+    except RuntimeError:
+        os.sys.exit()
     os.chdir(working_directory)
 
 
