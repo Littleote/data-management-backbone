@@ -81,7 +81,33 @@ def new_pipeline(folder):
 
 
 def new_table(folder):
-    pass
+    #introduce the new table and SQL code
+    name_table=input("Insert the name of the new table: ")
+    sql_code=input("Now insert the SQL code needed to create the new table: ")
+
+    #define json path
+    file_path=os.path.join(folder, "exploitation", "tables.json")
+
+    #open file and read data
+    with open(file_path, 'r') as file:
+        data=json.load(file)
+
+    #define the new element
+    new_element= {
+        name_table:sql_code
+    }
+
+    # add the new element to the data
+    data.update(new_element)
+
+    # open file and write the data with the new table
+    with open(file_path, 'w') as file:
+        json.dump(data, file, indent=4)
+
+    # confirmation
+    print("Your new table has been succesfully added")
+
+
 
 
 def _main(args, folder):

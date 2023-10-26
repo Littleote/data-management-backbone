@@ -1,11 +1,11 @@
 # Utilities
-os
-re
-json
-shutil
-zipfile
+#os-sys
+regex
+jsonlib
+pytest-shutil
+zipfile36
 requests
-datetime
+DateTime
 argparse
 
 # DB related
