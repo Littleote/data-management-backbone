@@ -1,12 +1,6 @@
 # Utilities
-#os-sys
-regex
-jsonlib
-pytest-shutil
-zipfile36
+# os, re, json, shutil, zipfile, datetime, argparse
 requests
-DateTime
-argparse
 
 # DB related
 pandas
