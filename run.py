@@ -7,6 +7,7 @@ import os
 import sys
 import json
 import argparse
+import duckdb
 
 import landing
 import formatted
@@ -22,6 +23,28 @@ def check_folders(folder):
             os.mkdir(zone)
 
 
+def select(name, options):
+    if len(options) > 1:
+        print(f"Available {name}s:")
+        for i, option in enumerate(options):
+            print(f"   {i + 1}.- {option}")
+        print()
+        option = input(f"Select a {name}'s index: ")
+        try:
+            option = int(option)
+            assert 0 < option <= len(options)
+        except (AssertionError, ValueError):
+            print("Invalid index")
+            return None
+        return options[option - 1]
+    if len(options) == 1:
+        print(f"Only {name} available is {options[0]}, procced?")
+        option = input("[Y]/N\n")
+        if len(option) <= 0 or option.lower()[0] != 'n':
+            return options[0]
+    return None
+
+
 def parse(args):
     arg_parser = argparse.ArgumentParser(
         description='Data management pipeline',
@@ -31,6 +54,9 @@ def parse(args):
                         , help="Fetch the latest version of a dataset")
     action.add_argument("--new", choices=["pipeline", "table"]
                         , help="Create a new dataset pipeline or a new exploitation table")
+    action.add_argument("--view", choices=["formatted", "trusted", "exploitation"]
+                        , metavar="ZONE", type = str.lower
+                        , help="Visualize a table in the specified zone \n (formatted, trusted or exploitation)")
     return arg_parser.parse_args(args)
 
 
@@ -38,18 +64,9 @@ def fetch(pipeline, folder):
     pipelines = os.listdir(os.path.join(folder, "dataset_info"))
     pipelines = [pipe[:-5] for pipe in pipelines if pipe[-5:] == '.json']
     if pipeline == -1:
-        print("Available pipelines:")
-        for i, pipe in enumerate(pipelines):
-            print(f"   {i + 1}.- {pipe}")
-        print()
-        pipeline = input("Select a pipeline's index: ")
-        try:
-            pipeline = int(pipeline)
-            assert 0 < pipeline <= len(pipelines)
-        except (AssertionError, ValueError):
-            print("Invalid index")
+        pipeline = select("pipeline", pipelines)
+        if pipeline is None:
             return
-        pipeline = pipelines[pipeline - 1]
     else:
         if not pipeline in pipelines:
             print(f"{pipeline} pipeline doesn't exist")
@@ -84,6 +101,55 @@ def new_table(folder):
     pass
 
 
+def view(zone, folder):
+    folder = os.path.join(folder, zone)
+    if zone == "formatted":
+        db_files = os.listdir(folder)
+        db_files = [db_file for db_file in db_files if db_file[-3:] == '.db']
+        db_connection = select("database", db_files)
+        if db_connection is None:
+            return
+    else:
+        db_connection = "database.db"
+    print(f"Connecting to {zone}/{db_connection}")
+    db_connection = os.path.join(folder, db_connection)
+    with duckdb.connect(db_connection, read_only=True) as con:
+        tables = con.execute("SHOW ALL TABLES").df()
+        tables = tables['name']
+        table = select("table", tables)
+        if table is None:
+            return
+
+        print()
+        print(" === SCHEMA INFORMATION === ")
+        print(con.execute(f"DESCRIBE {table}").df().to_string())
+
+        print()
+        print(" === TABLE STATISTICS === ")
+        table_df = con.execute(f"SELECT * FROM {table}").df()
+        print(table_df.describe().to_string())
+
+        print()
+        print(" === HEAD === ")
+        print(table_df.head().to_string())
+        print(" === TAIL === ")
+        print(table_df.tail().to_string())
+
+        quit_message = "Press Enter to continue or 'q' to quit "
+        has_quit = input(quit_message)
+        has_quit = len(has_quit) > 0 and 'q' in has_quit.lower()
+        range_start = 0
+        range_step = 10
+        while not has_quit:
+            print(table_df[range_start:range_start + range_step].to_string())
+            range_start += range_step
+            if range_start < len(table_df):
+                has_quit = input(quit_message)
+                has_quit = len(has_quit) > 0 and 'q' in has_quit.lower()
+            else:
+                has_quit = True
+
+
 def _main(args, folder):
     args = parse(args)
     check_folders(folder)
@@ -94,6 +160,8 @@ def _main(args, folder):
             new_pipeline(folder)
         elif args.new == "table":
             new_table(folder)
+    elif args.view is not None:
+        view(args.view, folder)
 
 
 if __name__ == "__main__":
