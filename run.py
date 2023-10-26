@@ -60,6 +60,8 @@ def parse(args):
                         , help="Fetch the latest version of a dataset")
     action.add_argument("--new", choices=["pipeline", "table"]
                         , help="Create a new dataset pipeline or a new exploitation table")
+    action.add_argument("--delete", choices=["pipeline", "table"]
+                        , help="Delete a dataset pipeline or an exploitation table query")
     action.add_argument("--view", choices=["formatted", "trusted", "exploitation"]
                         , metavar="ZONE", type = str.lower
                         , help="Visualize a table in the specified zone \n" \
@@ -128,6 +130,9 @@ def new_pipeline(folder):
         except RuntimeError:
             os.chdir(folder)
             return
+        except BaseException as err:
+            os.chdir(folder)
+            raise err
 
         # Save
         with open(os.path.join(folder, 'dataset_info', pipeline_name + '.json'),
@@ -335,6 +340,49 @@ def new_table(folder):
     print("Your new table has been succesfully added")
 
 
+def delete(folder, kind):
+    no_opt = "<DONE>"
+
+    # Load delete options
+    if kind == "pipeline":
+        options = os.listdir(os.path.join(folder, "dataset_info"))
+        options = [pipe for pipe in options if pipe[-5:] == '.json']
+    elif kind == "table":
+        file_path = os.path.join(folder, "exploitation", "tables.json")
+        with open(file_path, mode='r', encoding='utf-8') as file:
+            data = json.load(file)
+        options = list(data.keys())
+
+    # Select options to delete
+    selected = []
+    option = ""
+    options = [no_opt] + options
+    while option != no_opt:
+        option = select(kind, options)
+        if option is not None and option != no_opt:
+            selected += [option]
+            options.remove(option)
+
+    # Confirm and delete
+    if len(selected) > 0:
+        sep = "', '"
+        print(f"Do you really want to delete '{sep.join(selected)}'")
+        option = input("Y/[N]\n")
+        if len(option) <= 0 or option.lower()[0] != 'y':
+            selected = []
+    if len(selected) <= 0:
+        return
+
+    if kind == "pipeline":
+        for option in selected:
+            os.remove(os.path.join(folder, "dataset_info", option))
+    elif kind == "table":
+        for option in selected:
+            data.pop(option)
+        with open(file_path, mode='w', encoding='utf-8') as file:
+            json.dump(data, file, indent=4)
+
+
 def view(zone, folder):
     folder = os.path.join(folder, zone)
     if zone == "formatted":
@@ -394,6 +442,8 @@ def _main(args, folder):
             new_pipeline(folder)
         elif args.new == "table":
             new_table(folder)
+    elif args.delete is not None:
+        delete(folder, args.delete)
     elif args.view is not None:
         view(args.view, folder)
 
