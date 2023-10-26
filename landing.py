@@ -14,9 +14,14 @@ temporal_path = 'landing/temporal/'
 persistent_path = 'landing/persistent/'
 
 def request(url):
-    response = requests.get(url, timeout=10)
+    try:
+        response = requests.get(url, timeout=10)
+    except Exception as e:
+        print(f"Unable to connect to server (URL: {url})")
+        raise RuntimeError() from e
     if not response.ok:
-        raise RuntimeError(f"Failed request to server (URL: {url})")
+        print(f"Failed request to server (URL: {url})")
+        raise RuntimeError()
     return response
 
 
@@ -29,8 +34,12 @@ def check_folders():
 
 
 def save_request(response):
-    disposition = response.headers['Content-Disposition']
-    filename = re.findall("filename=(.+)", disposition)[0]
+    disposition = response.headers.get('Content-Disposition', "")
+    filename = re.findall("filename=(.+)", disposition)
+    if len(filename) > 0:
+        filename = filename[0]
+    else:
+        filename = "out"
     filename = filename.replace('"', '').replace("'", '')
     with open(temporal_path + filename, 'wb') as handler:
         for chunk in response.iter_content(chunk_size=128):
@@ -69,6 +78,7 @@ def move_to_persistent(filename, target):
     else:
         os.rename(temporal_path + filename,
                   os.path.join(persistent_path, target, new_filename))
+    return new_filename
 
 
 def to_landing(pipeline, target):
@@ -77,7 +87,7 @@ def to_landing(pipeline, target):
     filename = save_request(response)
     if "unfold" in pipeline.keys():
         filename = unfold_file(filename)
-    move_to_persistent(filename, target)
+    return move_to_persistent(filename, target)
 
 
 if __name__ == "__main__":

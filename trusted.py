@@ -94,7 +94,14 @@ def clean_data(pipeline, target):
     queries = pipeline.get('transformations', [])
     with duckdb.connect(database=db_trusted, read_only=False) as con:
         for query in queries:
-            con.execute(query.format(dataset=target))
+            try:
+                con.execute(query.format(dataset=target))
+            except (duckdb.CatalogException, duckdb.ParserException) as err:
+                print("Unable to run transformation:")
+                print(f"{query.format(dataset=target)}")
+                print("Causes:")
+                for arg in err.args:
+                    print(arg)
 
 
 def to_trusted(pipeline, target):
