@@ -21,6 +21,8 @@ def new(kind, folder):
         new_pipeline(folder)
     elif kind == "table":
         new_table(folder)
+    else:
+        raise NotImplementedError(f"new {kind} not yet implemented")
 
 
 def check_folders(folder):
@@ -54,6 +56,9 @@ def new_pipeline(folder):
                   mode='w', encoding='utf-8') as handler:
             json.dump(pipeline, handler, indent=4)
 
+        # Confirmation
+        print("Your new pipeline has been succesfully added")
+
 
 def new_pipeline_landing(pipeline, name):
     retry = True
@@ -77,6 +82,8 @@ def new_pipeline_landing(pipeline, name):
 #     print("Is it necessary to unfold the file?")
 #     option = input("Y/[N]\n")
 #     if len(option) > 0 and option.lower()[0] == 'y':
+#         [os.path.join(r, e)[len("landing/temporal/"):] for e in f \
+#             for r, _, f in os.walk("landing/temporal/")]
 #         raise NotImplementedError("unfold parameter specification is not implemented")
 # =============================================================================
 
@@ -171,8 +178,8 @@ def new_pipeline_trusted(pipeline, name, col_names):
     # Order
     pipeline["keep"] = "latest"
     print("Keep latest version?")
-    option = input("Y/[N]\n")
-    if len(option) > 0 and option.lower()[0] == 'y':
+    option = input("[Y]/N\n")
+    if len(option) > 0 and option.lower()[0] == 'n':
         pipeline["keep"] = "oldest"
 
     # Run step

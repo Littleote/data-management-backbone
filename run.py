@@ -7,7 +7,7 @@ import os
 import sys
 import argparse
 
-from commands import fetch, new, delete, view
+from commands import fetch, new, update, delete, view
 
 from utils import Path, get_zones
 
@@ -25,9 +25,18 @@ def parse(args):
     action = arg_parser.add_mutually_exclusive_group(required=True)
     action.add_argument("--fetch", nargs='?', const=-1, metavar="DATASET"
                         , help="Fetch the latest version of a dataset")
-    action.add_argument("--new", choices=["pipeline", "table"]
-                        , help="Create a new dataset pipeline or a new exploitation table")
-    action.add_argument("--delete", choices=["pipeline", "table"]
+    action.add_argument("--new", type = str.lower,
+                        choices=["pipeline", "table", "analysis", "dataset", "model"]
+                        , help="""Create one of the following:
+a new dataset PIPELINE,
+a new exploitation TABLE,
+a new set of tables in sandbox for an ANALYSIS,
+a new transformation of sandbox tables into a DATASET,
+a new MODEL to perform an analysis""")
+    action.add_argument("--update", type = str.lower,
+                        choices=["table", "analysis", "dataset", "model"]
+                        , help="Update the parameters of the given object and rerun it")
+    action.add_argument("--delete", type = str.lower, choices=["pipeline", "table"]
                         , help="Delete a dataset pipeline or an exploitation table query")
     action.add_argument("--view", choices=["formatted", "trusted", "exploitation"]
                         , metavar="ZONE", type = str.lower
@@ -43,6 +52,8 @@ def _main(args, folder):
         fetch(args.fetch, folder)
     elif args.new is not None:
         new(args.new, folder)
+    elif args.update is not None:
+        update(args.update, folder)
     elif args.delete is not None:
         delete(args.delete, folder)
     elif args.view is not None:
