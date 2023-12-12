@@ -12,8 +12,11 @@ import duckdb
 import landing
 import formatted
 import trusted
+import sandbox
 
-from utils import Path, select, get_zones
+from utils import Path, confirm, select, get_zones
+
+DB_FILE = 'database.db'
 
 
 def new(kind, folder):
@@ -21,6 +24,8 @@ def new(kind, folder):
         new_pipeline(folder)
     elif kind == "table":
         new_table(folder)
+    elif kind == "analysis":
+        new_analysis(folder)
     else:
         raise NotImplementedError(f"new {kind} not yet implemented")
 
@@ -69,9 +74,7 @@ def new_pipeline_landing(pipeline, name):
             response = landing.request(url)
             landing.check_folders()
             filename = landing.save_request(response)
-            print(f"Is '{filename}' the expected file?")
-            option = input("[Y]/N\n")
-            if len(option) > 0 and option.lower()[0] == 'n':
+            if not confirm(f"Is '{filename}' the expected file?"):
                 retry = True
         except RuntimeError:
             print("To get the download URL you can hover over the download button, " \
@@ -79,9 +82,7 @@ def new_pipeline_landing(pipeline, name):
             retry = True
     pipeline['URL'] = url
 # =============================================================================
-#     print("Is it necessary to unfold the file?")
-#     option = input("Y/[N]\n")
-#     if len(option) > 0 and option.lower()[0] == 'y':
+#     if confirm("Is it necessary to unfold the file?", default=False):
 #         [os.path.join(r, e)[len("landing/temporal/"):] for e in f \
 #             for r, _, f in os.walk("landing/temporal/")]
 #         raise NotImplementedError("unfold parameter specification is not implemented")
@@ -177,9 +178,7 @@ def new_pipeline_trusted(pipeline, name, col_names):
 
     # Order
     pipeline["keep"] = "latest"
-    print("Keep latest version?")
-    option = input("[Y]/N\n")
-    if len(option) > 0 and option.lower()[0] == 'n':
+    if not confirm("Keep latest version?"):
         pipeline["keep"] = "oldest"
 
     # Run step
@@ -192,14 +191,12 @@ def new_pipeline_trusted(pipeline, name, col_names):
 
 def new_pipeline_clening(pipeline, name):
     transformation = []
-    with duckdb.connect("trusted/database.db", read_only=False) as con:
+    with duckdb.connect(f"trusted/{DB_FILE}", read_only=False) as con:
         table = con.execute(f"SELECT * FROM {name}").df()
         print("Current table:")
         print(table.head().to_string())
         print(table.head().to_string())
-        print("Add SQL to cleaning step?")
-        option = input("Y/[N]\n")
-        retry = len(option) > 0 and option.lower()[0] == 'y'
+        retry = confirm("Add SQL to cleaning step?", default=False)
         while retry:
             # Get query
             print("Enter SQL command (you may use {dataset} as the table name).")
@@ -226,9 +223,7 @@ def new_pipeline_clening(pipeline, name):
                 print("Causes:")
                 for arg in err.args:
                     print(arg)
-            print("Add another SQL to cleaning step?")
-            option = input("Y/[N]\n")
-            retry = len(option) > 0 and option.lower()[0] == 'y'
+            retry = confirm("Add another SQL to cleaning step?", default=False)
     pipeline["transformations"] = transformation
     return pipeline
 
@@ -259,3 +254,81 @@ def new_table(folder):
 
     # Confirmation
     print("Your new table has been succesfully added")
+
+
+def new_analysis(folder):
+    with Path(folder):
+        # Open file and read data
+        if os.path.isfile("sandbox/analysis.json"):
+            with open("sandbox/analysis.json", mode='r', encoding='utf-8') as handler:
+                analysis = json.load(handler)
+        else:
+            analysis = {}
+
+        # Introduce the new name
+        name = input("Insert the name of the new analysis: ")
+        if name in analysis.keys():
+            print("This name is already in use, insert a name not in:")
+            print(*list(analysis.keys()), sep=',')
+            name = input("Name of the new analysis: ")
+            if name in analysis.keys():
+                print("Name already present")
+                return
+
+        new_info = {
+            "data": {},
+            "constraints": {},
+            "type": None
+        }
+
+        analysis_type = select("analysis type", ["regression", "categorical", "binary"])
+        if analysis_type is None:
+            print("New analysis aborted")
+            return
+        new_info["type"] = analysis_type
+
+        # Get possible columns to use
+        with duckdb.connect(f"exploitation/{DB_FILE}", read_only=True) as con:
+            tables = con.execute("SHOW ALL TABLES").df()
+        for _, row in tables.iterrows():
+            if confirm(f"Use table {row['name']} for the analysis?"):
+                no_opt = "<CONTINUE>"
+                all_opt = "<ALL>"
+                special_opt = [no_opt, all_opt]
+
+                # Column select
+                col_names = row["column_names"]
+                selection = []
+                variable = ""
+                options = special_opt + col_names
+                while variable not in special_opt:
+                    variable = select("column", options)
+                    if variable is not None:
+                        options.remove(variable)
+                        selection.append(variable)
+                if variable == all_opt:
+                    selection = '*'
+                elif variable == no_opt:
+                    selection.remove(no_opt)
+                new_info['data'][row['name']] = selection
+
+                # Constraint addition
+                if confirm(f"Use only a subset of table {row['name']} for the analysis?",
+                           default=False):
+                    sql_constraint = input(
+                        "Now write the subset selection code (SQL WHERE clause): ")
+                    new_info['constraints'][row['name']] = sql_constraint
+        analysis[name] = new_info
+
+        # Open file and write the data with the new table
+        with open("sandbox/analysis.json", mode='w', encoding='utf-8') as handler:
+            json.dump(analysis, handler, indent=4)
+
+        # Confirmation
+        print("The parameters have been succesfully created")
+
+        # Fetch analysis tables
+        sandbox.fetch_analysis_data(name)
+
+        # Confirmation
+        print("The analysis tables have been created")

@@ -6,7 +6,7 @@
 import os
 import json
 
-from utils import select
+from utils import confirm, select
 
 def delete(kind, folder):
     no_opt = "<DONE>"
@@ -35,8 +35,7 @@ def delete(kind, folder):
     if len(selected) > 0:
         sep = "', '"
         print(f"Do you really want to delete '{sep.join(selected)}'")
-        option = input("Y/[N]\n")
-        if len(option) <= 0 or option.lower()[0] != 'y':
+        if not confirm(None, default=False):
             selected = []
     if len(selected) <= 0:
         return

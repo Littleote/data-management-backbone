@@ -1,0 +1,10 @@
+{
+    "islam_presence": {
+        "data": {
+            "cult_centers": "*",
+            "immigration": "*"
+        },
+        "constraints": {},
+        "type": "categorical"
+    }
+}
