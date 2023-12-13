@@ -1,0 +1,9 @@
+{
+    "islam_presence": {
+        "max_foreign": {
+            "transform": "SELECT\n  count(CASE WHEN centers.CONFESSI\u00d3 ILIKE 'Esgl\u00e9sia cat\u00f2lica' then 1 ELSE NULL END) AS num_catolic,\n  count(CASE WHEN centers.CONFESSI\u00d3 ILIKE 'Esgl\u00e9sies Evang\u00e8liques' then 1 ELSE NULL END) AS num_evangelic,\n  bool_or(CASE WHEN centers.CONFESSI\u00d3 ILIKE 'Islam' then true ELSE false END) AS is_there_islam,\n  max(im.inhabitants) as inhabitants,\n  max(im.Foreign_immigrants_africa) as immigrants_africa,\n  max(im.Foreign_immigrants_america) as immigrants_america,\n  max(im.Foreign_immigrants_asia) as immigrants_asia,\n  max(im.Foreign_immigrants_europe) as immigrants_europe,\n  max(im.Foreign_immigrants_others) as immigrants_others,\n  max(im.immigration_percentage_per_town) as percentage_immigrants\nFROM immigration AS im\nINNER JOIN cult_centers AS centers on im.municipality ILIKE centers.MUNICIPI\nGROUP BY im.municipality",
+            "target": "is_there_islam",
+            "split": 0.7
+        }
+    }
+}
