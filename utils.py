@@ -190,3 +190,43 @@ def select(name: str, options: list):
             return options[0]
     # Cancel if not
     return None
+
+
+def new_name(name: str, current: list[str], *, attempts: int = 2):
+    """
+    Asks user to a name not present in current list
+
+    Parameters
+    ----------
+    name : str
+        Name of the options presented to the user.
+    current : list[str]
+        List of names already in use.
+    attempts : int
+        Number of times the user is prompted.
+        if attempts is less or equal to zero it's repeated undefinetly
+
+    Returns
+    -------
+    str or None
+        New name if specified.
+
+    """
+    info_dump = ""
+    counter = 0
+    if len(current) > 0:
+        info_dump = '", "'.join(current)
+        info_dump = f"\n(Must be different from \"{info_dump}\")"
+    print(f"Input a new name for {name}: {info_dump}")
+    new_name = input()
+    while new_name in current or new_name == '':
+        counter += 1
+        if counter >= attempts > 0:
+            new_name = None
+            break
+        if new_name == '':
+            print(f"Input a new name for {name}:")
+        else:
+            print(f"This name is already in use, insert a new name for {name}:  {info_dump}")
+        new_name = input()
+    return new_name

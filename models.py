@@ -154,9 +154,9 @@ def save_model(model, parameters, final_metrics, info, *, overwrite=False):
     os.mkdir(instance_path)
 
     # Save complex variables
-    info["parameters_file"] = os.path.join(instance_path, file_parameters + extension)
-    with open(info["parameters_file"], mode='wb') as handler:
-        dump(parameters, handler)
+    info["parameters_file"] = os.path.join(instance_path, file_parameters + ".json")
+    with open(info["parameters_file"], mode='w', encoding='utf-8') as handler:
+        json.dump(parameters, handler)
 
     info["model_file"] = os.path.join(instance_path, file_model + extension)
     with open(info["model_file"], mode='wb') as handler:
@@ -215,8 +215,8 @@ def load_model(analysis, dataset, instance):
         raise RuntimeError("Model not present in database") from err
 
     # Load complex variables
-    with open(info["parameters_file"], mode='rb') as handler:
-        parameters = load(handler)
+    with open(info["parameters_file"], mode='r', encoding='utf-8') as handler:
+        parameters = json.load(handler)
 
     with open(info["model_file"], mode='rb') as handler:
         model = load(handler)
@@ -250,10 +250,12 @@ class Model():
         self.model, self.info, self.params = generate_model(self.info, self.params)
         pipeline = generate_pipeline(self.dataset.get("data_preparation", []))
         self.model = pipe_model(pipeline, self.model)
+        return self
 
     def fit(self):
         self._load_data()
         train_model(self.model, self.dataset["target"], self.train)
+        return self
 
     def validate(self):
         self._load_data()
@@ -261,6 +263,7 @@ class Model():
         model_target = self.dataset["target"]
         truth, pred, prob = test_model(self.model, model_type, model_target, self.test)
         self.metrics = evaluate_results(model_type, truth, pred, prob)
+        return self
 
     def predict(self, data):
         return self.model.predict(data)

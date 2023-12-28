@@ -11,7 +11,7 @@ import exploitation
 import sandbox
 import feature_generation as fgeneration
 
-from utils import Path, confirm, select, get_zones
+from utils import Path, confirm, select, new_name, get_zones
 
 DB_FILE = 'database.db'
 
@@ -69,6 +69,8 @@ def update_table(folder):
     print("Your table has been succesfully updated")
 
 
+from .command_common import query_analysis_parameters
+
 def update_analysis(folder):
     with Path(folder):
         # Get list of analysis in use (with models)
@@ -96,62 +98,28 @@ def update_analysis(folder):
         info = analysis[name]
 
         if name in used:
-            update_params = False
             if confirm(f"{name} is already in use by a model, create a copy insetad?",
                        force_confirmation=True):
                 # Introduce the new name
-                name = input("Insert the name of the copy: ")
-                if name in analysis.keys():
-                    print("This name is already in use, insert a name not in:")
-                    print(*list(analysis.keys()), sep=',')
-                    name = input("Name of the new copy: ")
-                    if name in analysis.keys():
-                        print("Name already present")
-                        return
+                name = new_name("analysis", list(analysis.keys()))
+                if name is None:
+                    print("Update analysis aborted")
+                    return
             else:
                 print("Update analysis aborted")
                 return
-        else:
-            update_params = confirm("Update analysis parameters?", force_confirmation=True)
 
-        if update_params:
-            analysis_type = select("analysis type", ["regression", "categorical", "binary"])
-            if analysis_type is None:
-                print("Update analysis aborted")
+        if confirm("Update analysis parameters?", force_confirmation=True):
+            # Ask the user for the parameters
+            try:
+                info = query_analysis_parameters(info)
+                if info is None:
+                    print("Update analysis aborted")
+                    return
+            except() as err:
+                print(*err.args, sep="\n")
                 return
-            info["type"] = analysis_type
 
-            # Get possible columns to use
-            with duckdb.connect(f"exploitation/{DB_FILE}", read_only=True) as con:
-                tables = con.execute("SHOW ALL TABLES").df()
-            for _, row in tables.iterrows():
-                if confirm(f"Use table {row['name']} for the analysis?"):
-                    no_opt = "<CONTINUE>"
-                    all_opt = "<ALL>"
-                    special_opt = [no_opt, all_opt]
-
-                    # Column select
-                    col_names = row["column_names"]
-                    selection = []
-                    variable = ""
-                    options = special_opt + col_names
-                    while variable not in special_opt:
-                        variable = select("column", options)
-                        if variable is not None:
-                            options.remove(variable)
-                            selection.append(variable)
-                    if variable == all_opt:
-                        selection = '*'
-                    elif variable == no_opt:
-                        selection.remove(no_opt)
-                    info['data'][row['name']] = selection
-
-                    # Constraint addition
-                    if confirm(f"Use only a subset of table {row['name']} for the analysis?",
-                               default=False):
-                        sql_constraint = input(
-                            "Now write the subset selection code (SQL WHERE clause): ")
-                        info['constraints'][row['name']] = sql_constraint
             analysis[name] = info
 
             # Open file and write the data with the new table
@@ -167,6 +135,8 @@ def update_analysis(folder):
         # Confirmation
         print("The analysis tables have been updated")
 
+
+from .command_common import query_dataset_parameters, query_dataset_transforms
 
 def update_dataset(folder):
     with Path(folder):
@@ -206,58 +176,23 @@ def update_dataset(folder):
         info = data_subset[name]
 
         if name in used:
-            update_params = False
             if confirm(f"{name} is already in use by a model, create a copy insetad?",
                        force_confirmation=True):
                 # Introduce the new name
-                name = input("Insert the name of the copy: ")
-                if name in data_subset.keys():
-                    print("This name is already in use, insert a name not in:")
-                    print(*list(data_subset.keys()), sep=',')
-                    name = input("Name of the new copy: ")
-                    if name in data_subset.keys():
-                        print("Name already present")
-                        return
+                name = new_name("dataset", list(data_subset.keys()))
+                if name is None:
+                    print("Update dataset aborted")
+                    return
             else:
                 print("Update dataset aborted")
                 return
-        else:
-            update_params = confirm("Update analysis parameters?", force_confirmation=True)
 
-        if update_params:
-            # Open analysis file and read data
-            with open("sandbox/analysis.json", mode='r', encoding='utf-8') as handler:
-                analysis = json.load(handler)
-
-            # Give the tables and columns of the analysis
-            print(f"Analysis {analysis_name} informatio:")
-            for table, rows in analysis[analysis_name]['data'].items():
-                print(f"Table {table}")
-                print(*[f"{i + 1}. {val}" for i, val in enumerate(rows)], sep = "\n")
-
-            # Get transfomation query
-            print("Enter SQL command.")
-            print("Press enter twice to finish.")
-            query_line = None
-            query = ""
-            while query_line != "":
-                query_line = input()
-                query += '\n' + query_line
-            query = query[1:-1]
-            info["transform"] = query
-
-            # Ask user for the target(s) column(s)
-            target = input("Indicate the target column " \
-                                       "(in case of multiple, separate them with a coma)\n")
-            targets = target.replace(' ', '').split(',')
-            info["target"] = target if len(targets) == 1 else targets
-
-            # Ask the user for the splitting ratio
+        if confirm("Update analysis parameters?", force_confirmation=True):
+            # Ask the user for the parameters
             try:
-                info["split"] = float(input("Indicate the ratio to use for training\n"))
-                assert 0 < info["split"] < 1
-            except(ValueError, AssertionError):
-                print("Invalid vale for a ratio")
+                info = query_dataset_parameters(info, analysis_name)
+            except(ValueError) as err:
+                print(*err.args, sep="\n")
                 return
 
             # Add results
@@ -270,6 +205,25 @@ def update_dataset(folder):
 
             # Confirmation
             print("The parameters have been succesfully updated")
+
+        if confirm("Update extra transformations?", default=False):
+            # Ask the user for the transforms
+            try:
+                info = query_dataset_transforms(info, analysis_name)
+            except() as err:
+                print(*err.args, sep="\n")
+                return
+    
+            # Add results
+            data_subset[name] = info
+            dataset[analysis_name] = data_subset
+    
+            # Open file and write the data with the new table
+            with open("feature_generation/dataset.json", mode='w', encoding='utf-8') as handler:
+                json.dump(dataset, handler, indent=4)
+    
+            # Confirmation
+            print("The transformations have been succesfully updated")
 
         # Fetch analysis tables
         fgeneration.transform_analysis_data(analysis_name, name)

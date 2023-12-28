@@ -5,6 +5,6 @@
             "immigration": "*"
         },
         "constraints": {},
-        "type": "categorical"
+        "type": "binary"
     }
 }
