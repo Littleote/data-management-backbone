@@ -3,7 +3,7 @@
 @authors: david candela & andreu giménez
 """
 
-import json
+import inspect
 import duckdb
 import models as model_func
 from utils import select, confirm, new_name
@@ -16,7 +16,7 @@ def query_analysis_parameters(info):
     while analysis_type is None:
         analysis_type = select("analysis type", [no_opt, "regression", "categorical", "binary"])
     if analysis_type == no_opt:
-        return
+        return None
     info["type"] = analysis_type
 
     # Get possible columns to use
@@ -88,7 +88,7 @@ def query_dataset_parameters(info, analysis_name):
         assert 0 < info["split"] < 1
     except(ValueError, AssertionError) as err:
         raise ValueError("Invalid vale for a ratio") from err
-    
+
     return info
 
 
@@ -109,28 +109,34 @@ def query_model_definition(info):
     # Introduce the new name
     name = new_name("model instance", matches)
     if name is None:
-        return
+        return None
     info["instance"] = name
-    
-    print("Specify module path for the model class")
-    library = input("sklearn.")
-    try:
-        model_func.get_object("sklearn." + library)
-        valid_import = True
-    except (AttributeError):
-        valid_import = False
-        print(f"{library} is not a valid object")
-    while not valid_import or not confirm(f"The model class is sklearn.{library}?"):
+
+    if info.get("library", None) is None or \
+            confirm("Change the model class?", default=False):
         print("Specify module path for the model class")
         library = input("sklearn.")
         try:
             model_func.get_object("sklearn." + library)
             valid_import = True
-        except (AttributeError):
+        except AttributeError:
             valid_import = False
-    info["library"] = name
-    
-    if confirm("Set a seed for the model?", default=False):
+            print(f"{library} is not a valid object")
+        while not valid_import or not confirm(f"The model class is sklearn.{library}?"):
+            print("Specify module path for the model class")
+            library = input("sklearn.")
+            try:
+                model_func.get_object("sklearn." + library)
+                valid_import = True
+            except AttributeError:
+                valid_import = False
+        info["library"] = library
+
+    if info.get("seed", None) is None:
+        print("Set a seed for the model?")
+    else:
+        print("Change the seed for the model?")
+    if confirm(None, default=False):
         try:
             seed = input("Seed: ")
             info["seed"] = int(seed)
@@ -138,6 +144,61 @@ def query_model_definition(info):
             info["seed"] = hash(seed) // (2 ** 31)
     else:
         info["seed"] = info.get("seed", None)
-    
-    raise NotImplementedError()
-    return info, {}
+
+    return info
+
+
+def describe(param, value):
+    mandatory = ""
+    variadic = {
+        inspect.Parameter.VAR_POSITIONAL: "*",
+        inspect.Parameter.VAR_KEYWORD: "**"
+    }
+    if param.default is param.empty and param.kind.description.find("variadic") == -1:
+        mandatory += "*"
+    if value is not param.empty:
+        mandatory += f" = {variadic.get(param.kind, '')}{value}"
+    elif param.default is not param.empty:
+        mandatory += f"( = {variadic.get(param.kind, '')}{param.default})"
+    if param.annotation is param.empty:
+        return f"{param.name}{mandatory} {param.kind.description}"
+    return f"{param.name}{mandatory} ({param.annotation}) {param.kind.description}"
+
+
+def query_model_parametrization(info):
+    model_object = model_func.get_object("sklearn." + info["library"])
+    sig = inspect.signature(model_object)
+    names = list(sig.parameters.keys())
+    arguments = sig.parameters.values()
+    required = [param.default is param.empty for param in arguments]
+    assignement = [param.empty for param in arguments]
+    no_opt = "<CONTINUE>"
+    option = None
+    while option != no_opt:
+        options = [describe(*param) for param in zip(arguments, assignement)]
+        if not any(required):
+            options.append(no_opt)
+        option = select("parameter", options)
+        if option is not None and option != no_opt:
+            index = options.index(option)
+            try:
+                value = input(f"Value for {names[index]}: ")
+                assignement[index] = eval(value)
+                required[index] = False
+            except Exception as err:
+                print("Invalid value", *list(err.args), sep="\n")
+
+    params = {"args": [], "kwargs": {}}
+    for param, value in zip(arguments, assignement):
+        value = param.default if value is param.empty else value
+        variadic = param.kind.description.find("variadic") != -1
+        positional = param.kind.description.find("positional") != -1
+        if positional and variadic:
+            params["args"] += list(value)
+        elif positional and not variadic:
+            params["args"].append(value)
+        elif not positional and variadic:
+            params["kwargs"].update(**value)
+        else:
+            params["kwargs"][param.name] = value
+    return params

@@ -18,6 +18,10 @@ from models import Model
 
 from utils import Path, confirm, select, new_name, get_zones
 
+from .command_common import query_analysis_parameters
+from .command_common import query_dataset_parameters, query_dataset_transforms
+from .command_common import query_model_definition, query_model_parametrization
+
 DB_FILE = 'database.db'
 
 
@@ -262,8 +266,6 @@ def new_table(folder):
     print("Your new table has been succesfully added")
 
 
-from .command_common import query_analysis_parameters
-
 def new_analysis(folder):
     with Path(folder):
         # Open file and read data
@@ -310,8 +312,6 @@ def new_analysis(folder):
         # Confirmation
         print("The analysis tables have been created")
 
-
-from .command_common import query_dataset_parameters, query_dataset_transforms
 
 def new_dataset(folder):
     with Path(folder):
@@ -364,19 +364,19 @@ def new_dataset(folder):
         if confirm("Add extra transformations?", default=False):
             # Ask the user for the transforms
             try:
-                new_info = query_dataset_transforms(new_info, analysis_name)
+                new_info = query_dataset_transforms(new_info)
             except() as err:
                 print(*err.args, sep="\n")
                 return
-    
+
             # Add results
             data_subset[name] = new_info
             dataset[analysis_name] = data_subset
-    
+
             # Open file and write the data with the new table
             with open("feature_generation/dataset.json", mode='w', encoding='utf-8') as handler:
                 json.dump(dataset, handler, indent=4)
-    
+
             # Confirmation
             print("The transformations have been succesfully created")
 
@@ -387,8 +387,6 @@ def new_dataset(folder):
         # Confirmation
         print("The dataset tables have been created")
 
-
-from .command_common import query_model_definition
 
 def new_model(folder):
     with Path(folder):
@@ -420,14 +418,22 @@ def new_model(folder):
             "library": None,
             "seed": None
         }
-        
+
         # Ask the user for the transforms
         try:
-            info, params = query_model_definition(info)
+            info = query_model_definition(info)
+            if info is None:
+                print("Model creation aborted")
+                return
+
+            params = query_model_parametrization(info)
+            if params is None:
+                print("Model creation aborted")
+                return
         except() as err:
             print(*err.args, sep="\n")
             return
-        
+
         model = Model(info, params)
         model.build().fit().validate().save()
         

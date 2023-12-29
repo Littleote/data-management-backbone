@@ -13,6 +13,10 @@ import feature_generation as fgeneration
 
 from utils import Path, confirm, select, new_name, get_zones
 
+from .command_common import query_analysis_parameters
+from .command_common import query_dataset_parameters, query_dataset_transforms
+# from .command_common import query_model_definition, query_model_parametrization
+
 DB_FILE = 'database.db'
 
 
@@ -68,8 +72,6 @@ def update_table(folder):
     # Confirmation
     print("Your table has been succesfully updated")
 
-
-from .command_common import query_analysis_parameters
 
 def update_analysis(folder):
     with Path(folder):
@@ -135,8 +137,6 @@ def update_analysis(folder):
         # Confirmation
         print("The analysis tables have been updated")
 
-
-from .command_common import query_dataset_parameters, query_dataset_transforms
 
 def update_dataset(folder):
     with Path(folder):
@@ -209,19 +209,19 @@ def update_dataset(folder):
         if confirm("Update extra transformations?", default=False):
             # Ask the user for the transforms
             try:
-                info = query_dataset_transforms(info, analysis_name)
+                info = query_dataset_transforms(info)
             except() as err:
                 print(*err.args, sep="\n")
                 return
-    
+
             # Add results
             data_subset[name] = info
             dataset[analysis_name] = data_subset
-    
+
             # Open file and write the data with the new table
             with open("feature_generation/dataset.json", mode='w', encoding='utf-8') as handler:
                 json.dump(dataset, handler, indent=4)
-    
+
             # Confirmation
             print("The transformations have been succesfully updated")
 

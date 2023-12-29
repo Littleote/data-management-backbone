@@ -43,7 +43,7 @@ def generate_model(info, model_parameters):
     model_class = get_object("sklearn." + info["library"])
 
     # Instantiate model class
-    model = model_class(**model_parameters)
+    model = model_class(*model_parameters["args"], **model_parameters["kwargs"])
     model_parameters = model.get_params()
 
     # Set RNG
@@ -151,12 +151,12 @@ def save_model(model, parameters, final_metrics, info, *, overwrite=False):
     # Create instance folder
     if os.path.exists(instance_path):
         shutil.rmtree(instance_path)
-    os.mkdir(instance_path)
+    os.makedirs(instance_path, exist_ok=True)
 
     # Save complex variables
     info["parameters_file"] = os.path.join(instance_path, file_parameters + ".json")
     with open(info["parameters_file"], mode='w', encoding='utf-8') as handler:
-        json.dump(parameters, handler)
+        json.dump(parameters, handler, indent=4)
 
     info["model_file"] = os.path.join(instance_path, file_model + extension)
     with open(info["model_file"], mode='wb') as handler:

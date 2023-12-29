@@ -165,3 +165,7 @@ cython_debug/
 
 # Temporal landing
 landing/temporal/
+
+# Generated models
+model/*/*/*/*.pickle
+model/*/*/*/*.json

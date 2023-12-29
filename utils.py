@@ -98,7 +98,7 @@ def get_zones():
         "exploitation",
         "sandbox",
         "feature_generation",
-        "models",
+        "model",
         "dataset_info"
     ]
 
@@ -218,15 +218,15 @@ def new_name(name: str, current: list[str], *, attempts: int = 2):
         info_dump = '", "'.join(current)
         info_dump = f"\n(Must be different from \"{info_dump}\")"
     print(f"Input a new name for {name}: {info_dump}")
-    new_name = input()
-    while new_name in current or new_name == '':
+    new = input()
+    while new in current or new == '':
         counter += 1
         if counter >= attempts > 0:
-            new_name = None
+            new = None
             break
-        if new_name == '':
+        if new == '':
             print(f"Input a new name for {name}:")
         else:
             print(f"This name is already in use, insert a new name for {name}:  {info_dump}")
-        new_name = input()
-    return new_name
+        new = input()
+    return new
