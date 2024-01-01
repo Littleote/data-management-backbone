@@ -436,4 +436,5 @@ def new_model(folder):
 
         model = Model(info, params)
         model.build().fit().validate().save()
+        print("Model built and saved, use --view model to see results")
         

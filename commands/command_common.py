@@ -98,10 +98,10 @@ def query_dataset_transforms(info):
 
 def query_model_definition(info):
     try:
-        with duckdb.connect(f"models/{DB_FILE}", read_only=True) as con:
+        with duckdb.connect(f"model/{DB_FILE}", read_only=True) as con:
             key_matches = f"analysis = '{info['analysis']}' AND " \
                 f"data = '{info['data']}'"
-            matches = con.execute(f"SELECT Models WHERE {key_matches}").df()
+            matches = con.execute(f"SELECT * FROM Models WHERE {key_matches}").df()
             matches = list(matches["instance"])
     except duckdb.CatalogException:
         matches = []
@@ -165,13 +165,16 @@ def describe(param, value):
     return f"{param.name}{mandatory} ({param.annotation}) {param.kind.description}"
 
 
-def query_model_parametrization(info):
+def query_model_parametrization(info, params=None):
     model_object = model_func.get_object("sklearn." + info["library"])
     sig = inspect.signature(model_object)
     names = list(sig.parameters.keys())
     arguments = sig.parameters.values()
     required = [param.default is param.empty for param in arguments]
     assignement = [param.empty for param in arguments]
+    if params is not None:
+        for key, value in params.get("params", {}).items():
+            assignement[names.index(key)] = value
     no_opt = "<CONTINUE>"
     option = None
     while option != no_opt:

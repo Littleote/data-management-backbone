@@ -10,12 +10,13 @@ import duckdb
 import exploitation
 import sandbox
 import feature_generation as fgeneration
+from models import Model
 
 from utils import Path, confirm, select, new_name, get_zones
 
 from .command_common import query_analysis_parameters
 from .command_common import query_dataset_parameters, query_dataset_transforms
-# from .command_common import query_model_definition, query_model_parametrization
+from .command_common import query_model_definition, query_model_parametrization
 
 DB_FILE = 'database.db'
 
@@ -27,6 +28,8 @@ def update(kind, folder):
         update_analysis(folder)
     elif kind == "dataset":
         update_dataset(folder)
+    elif kind == "model":
+        update_model(folder)
     else:
         raise NotImplementedError(f"update {kind} not yet implemented")
 
@@ -75,9 +78,9 @@ def update_table(folder):
 
 def update_analysis(folder):
     with Path(folder):
-        # Get list of analysis in use (with models)
+        # Get list of analysis in use (with model)
         try:
-            with duckdb.connect(f"models/{DB_FILE}", read_only=False) as con:
+            with duckdb.connect(f"model/{DB_FILE}", read_only=False) as con:
                 used = con.execute("SELECT DISTINCT analysis FROM Models").df()
                 used = list(used["analysis"])
         except duckdb.CatalogException:
@@ -107,6 +110,15 @@ def update_analysis(folder):
                 if name is None:
                     print("Update analysis aborted")
                     return
+
+                analysis[name] = info
+
+                # Open file and write the data with the new table
+                with open("sandbox/analysis.json", mode='w', encoding='utf-8') as handler:
+                    json.dump(analysis, handler, indent=4)
+
+                # Confirmation
+                print("Copy created")
             else:
                 print("Update analysis aborted")
                 return
@@ -140,9 +152,9 @@ def update_analysis(folder):
 
 def update_dataset(folder):
     with Path(folder):
-        # Get list of analysis in use (with models)
+        # Get list of analysis in use (with model)
         try:
-            with duckdb.connect(f"models/{DB_FILE}", read_only=False) as con:
+            with duckdb.connect(f"model/{DB_FILE}", read_only=False) as con:
                 used = con.execute("SELECT DISTINCT analysis, dataset FROM Models").df()
                 used = list(zip(used["analysis"], used["dataset"]))
         except duckdb.CatalogException:
@@ -183,6 +195,16 @@ def update_dataset(folder):
                 if name is None:
                     print("Update dataset aborted")
                     return
+
+                data_subset[name] = info
+                dataset[analysis_name] = data_subset
+
+                # Open file and write the data with the new table
+                with open("feature_generation/analysis.json", mode='w', encoding='utf-8') as handler:
+                    json.dump(dataset, handler, indent=4)
+
+                # Confirmation
+                print("Copy created")
             else:
                 print("Update dataset aborted")
                 return
@@ -231,3 +253,59 @@ def update_dataset(folder):
 
         # Confirmation
         print("The dataset tables have been created")
+
+
+def update_model(folder):
+    with Path(folder):
+        # Open analysis file, read data and select analysis
+        try:
+            with duckdb.connect(f"model/{DB_FILE}", read_only=True) as con:
+                matches = con.execute("SELECT * FROM Models").df()
+                instances = [
+                    (row["analysis"], row["data"], row["instance"], index)
+                    for index, row in matches.iterrows()
+                ]
+        except duckdb.CatalogException:
+            matches = []
+
+        # Select model instance (and analysis [and dataset])
+        options = {
+            f"{instance[2]} ({instance[0]}[{instance[1]}])": instance
+            for instance in instances
+         }
+
+        option = select("model", list(options.keys()))
+        if option is None:
+            print("Model copy aborted")
+            return
+        option = options[option]
+
+        info = {
+            "analysis": option[0],
+            "data": option[1],
+            "instance": None,
+            "library": matches["library"][option[3]],
+            "seed": matches["seed"][option[3]]
+        }
+
+        # Ask the user for the transforms
+        try:
+            info = query_model_definition(info)
+            if info is None:
+                print("Model copy aborted")
+                return
+
+            with open(matches["parameters_file"][option[3]], mode='r', encoding='utf-8') as handler:
+                params = json.load(handler)
+
+            params = query_model_parametrization(info, params)
+            if params is None:
+                print("Model copy aborted")
+                return
+        except() as err:
+            print(*err.args, sep="\n")
+            return
+
+        model = Model(info, params)
+        model.build().fit().validate().save()
+        print("Model copy built and saved, use --view model to see results")

@@ -38,10 +38,9 @@ a new MODEL to perform an analysis""")
                         , help="Update the parameters of the given object and rerun it")
     action.add_argument("--delete", type = str.lower, choices=["pipeline", "table"]
                         , help="Delete a dataset pipeline or an exploitation table query")
-    action.add_argument("--view", choices=["formatted", "trusted", "exploitation"]
-                        , metavar="ZONE", type = str.lower
-                        , help="Visualize a table in the specified zone \n" \
-                            "(formatted, trusted or exploitation)")
+    action.add_argument("--view", choices=["formatted", "trusted", "exploitation", "model"]
+                        , type = str.lower
+                        , help="Visualize the values (table or metrics) in the specified zone")
     return arg_parser.parse_args(args)
 
 

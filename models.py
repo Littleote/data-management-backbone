@@ -44,7 +44,7 @@ def generate_model(info, model_parameters):
 
     # Instantiate model class
     model = model_class(*model_parameters["args"], **model_parameters["kwargs"])
-    model_parameters = model.get_params()
+    model_parameters["params"] = model.get_params()
 
     # Set RNG
     info["seed"] = np.random.randint(2 ** 31) if info["seed"] is None else info["seed"]
@@ -138,7 +138,7 @@ def evaluate_results(model_type, truth, predicted, probability):
 
 
 def save_model(model, parameters, final_metrics, info, *, overwrite=False):
-    # Path and file names for saving models
+    # Path and file names for saving model
     instance_path = os.path.join(
         model_path,
         info['analysis'],
@@ -209,7 +209,7 @@ def load_model(analysis, dataset, instance):
             key_matches = f"analysis = '{analysis}' AND " \
                 f"data = '{dataset}' AND " \
                 f"instance = '{instance}'"
-            info_df = con.execute(f"SELECT Models WHERE {key_matches}").df()
+            info_df = con.execute(f"SELECT * FROM Models WHERE {key_matches}").df()
             info = info_df.iloc[0].to_dict()
     except (IndexError, duckdb.CatalogException) as err:
         raise RuntimeError("Model not present in database") from err
