@@ -1,6 +1,9 @@
 # Utilities
-# os, re, json, shutil, zipfile, datetime, argparse
 requests
+levenshtein
+
+# Modeling
+scikit-learn
 
 # DB related
 pandas

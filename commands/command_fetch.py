@@ -9,6 +9,7 @@ import json
 import landing
 import formatted
 import trusted
+import data_quality
 import exploitation
 
 from utils import Path, select
@@ -36,17 +37,21 @@ def fetch(pipeline, folder):
 
         try:
             # Run pipeline
-            print("Fetching dataset               ", end="\r")
+            padded = "{:<40s}".format
+            print(padded("Fetching dataset"), end="\r")
             landing.to_landing(pipeline_info, pipeline)
-            print("Formatting dataset             ", end="\r")
+            print(padded("Formatting dataset"), end="\r")
             formatted.to_formatted(pipeline_info, pipeline)
-            print("Joining dataset versions       ", end="\r")
+            print(padded("Joining dataset versions"), end="\r")
             trusted.to_trusted(pipeline_info, pipeline)
-            print("Cleaning dataset               ", end="\r")
+            print(padded("Cleaning dataset"), end="\r")
             trusted.clean_data(pipeline_info, pipeline)
-            print("Generaiting exploitation tables", end="\r")
+            print(padded("Performing data quality checks"), end="\r")
+            data_quality.check_quality(pipeline)
+            print(padded("Generaiting exploitation tables"), end="\r")
             exploitation.to_exploitation()
-            print("Done                           ", end="\n")
-        except RuntimeError:
-            os.sys.exit()
+            print(padded("Done"), end="\n")
+        except RuntimeError as err:
+            print("\nOperation aborted")
+            print(err.args)
             
