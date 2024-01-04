@@ -16,11 +16,11 @@ import sandbox
 import feature_generation as fgeneration
 from models import Model
 
-from utils import Path, confirm, select, new_name, get_zones
+from utils import EVAL_RESTRICTIONS, Path, confirm, select, new_name, get_zones
 
 from .command_common import query_analysis_parameters
 from .command_common import query_dataset_parameters, query_dataset_transforms
-from .command_common import query_model_definition, query_model_parametrization
+from .command_common import query_model_definition, query_object_parametrization
 
 DB_FILE = 'database.db'
 
@@ -139,8 +139,8 @@ def new_pipeline_formatted(pipeline, name, filename):
         elif ':' in value:
             value = value.split(':')
             try:
-                read_args[value[0]] = eval(':'.join(value[1:]),
-                                           None, None)
+                read_args[value[0]] = eval(':'.join(value[1:]).replace("__", ""),
+                                           EVAL_RESTRICTIONS, {})
             except Exception as err:
                 print("Invalid parameter value")
                 for arg in err.args:
@@ -426,7 +426,7 @@ def new_model(folder):
                 print("Model creation aborted")
                 return
 
-            params = query_model_parametrization(info)
+            params = query_object_parametrization("sklearn." + info["library"])
             if params is None:
                 print("Model creation aborted")
                 return

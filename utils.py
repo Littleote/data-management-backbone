@@ -5,6 +5,15 @@
 
 import os
 
+EVAL_RESTRICTIONS = {
+	"compile": None,
+	"exec": None,
+	"eval": None,
+	"open": None,
+	"__import__": None
+}
+
+
 class Path():
     """
     Allows to change working directory with contexts

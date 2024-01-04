@@ -6,7 +6,7 @@
 import inspect
 import duckdb
 import models as model_func
-from utils import select, confirm, new_name
+from utils import EVAL_RESTRICTIONS, select, confirm, new_name
 
 DB_FILE = 'database.db'
 
@@ -93,7 +93,60 @@ def query_dataset_parameters(info, analysis_name):
 
 
 def query_dataset_transforms(info):
-    raise NotImplementedError()
+    transform, function = "Transform", "Function"
+    done = "<DONE>"
+    first_step = True
+    layers = []
+    while first_step or confirm("Add new layer?"):
+        print("Add sklearn transformation or arbitrary function?")
+        layer = select("type", [transform, function, done])
+        if layer == transform:
+            print("Specify module path for the transformation class:")
+            library = input("sklearn.")
+            try:
+                model_func.get_object("sklearn." + library)
+            except (ModuleNotFoundError, AttributeError):
+                print(f"{library} is not a valid object")
+                continue
+            packet = {"transform": library}
+            packet.update(query_object_parametrization("sklearn." + library))
+        elif layer == function:
+            print("Specify module path for the function:")
+            library = input("")
+            try:
+                model_func.get_object(library)
+            except (ModuleNotFoundError, ValueError, AttributeError):
+                print(f"{library} is not a valid object")
+                continue
+            packet = {"function": library}
+            def func(*args, **kwargs):
+                return {"args": args, "kwargs": kwargs}
+            print("Write function call to define arguments (empty if no arguments):")
+            print("(example 'np.add(12, keepdim=True)'")
+            expr = input("")
+            if len(expr.split('(')) > 1:
+                args = '(' + '('.join(expr.split('(')[1:])
+                try:
+                    packet.update(eval(
+                        f"func{args}".replace("__", ""),
+                        EVAL_RESTRICTIONS,
+                        {"func": func}
+                    ))
+                except Exception as err:
+                    print("Invalid value", *list(err.args), sep="\n")
+                    continue
+        else:
+            break
+        if not confirm("Apply to all?"):
+            selection = []
+            name = new_name("columns to be applied", selection, attempts=1)
+            while name is not None:
+                selection.append(name)
+                name = new_name("columns to be applied", selection, attempts=1)
+            packet["columns"] = selection
+        layers.append(packet)
+    info["data_preparation"] = layers
+    return info
 
 
 def query_model_definition(info):
@@ -119,7 +172,7 @@ def query_model_definition(info):
         try:
             model_func.get_object("sklearn." + library)
             valid_import = True
-        except AttributeError:
+        except (ModuleNotFoundError, AttributeError):
             valid_import = False
             print(f"{library} is not a valid object")
         while not valid_import or not confirm(f"The model class is sklearn.{library}?"):
@@ -165,15 +218,15 @@ def describe(param, value):
     return f"{param.name}{mandatory} ({param.annotation}) {param.kind.description}"
 
 
-def query_model_parametrization(info, params=None):
-    model_object = model_func.get_object("sklearn." + info["library"])
-    sig = inspect.signature(model_object)
+def query_object_parametrization(object_name, params=None):
+    object_class = model_func.get_object(object_name)
+    sig = inspect.signature(object_class)
     names = list(sig.parameters.keys())
     arguments = sig.parameters.values()
     required = [param.default is param.empty for param in arguments]
     assignement = [param.empty for param in arguments]
     if params is not None:
-        for key, value in params.get("params", {}).items():
+        for key, value in params.items():
             assignement[names.index(key)] = value
     no_opt = "<CONTINUE>"
     option = None
@@ -186,7 +239,7 @@ def query_model_parametrization(info, params=None):
             index = options.index(option)
             try:
                 value = input(f"Value for {names[index]}: ")
-                assignement[index] = eval(value)
+                assignement[index] = eval(value.replace("__", ""), EVAL_RESTRICTIONS, {})
                 required[index] = False
             except Exception as err:
                 print("Invalid value", *list(err.args), sep="\n")

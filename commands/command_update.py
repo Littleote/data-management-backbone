@@ -16,7 +16,7 @@ from utils import Path, confirm, select, new_name, get_zones
 
 from .command_common import query_analysis_parameters
 from .command_common import query_dataset_parameters, query_dataset_transforms
-from .command_common import query_model_definition, query_model_parametrization
+from .command_common import query_model_definition, query_object_parametrization
 
 DB_FILE = 'database.db'
 
@@ -155,8 +155,8 @@ def update_dataset(folder):
         # Get list of analysis in use (with model)
         try:
             with duckdb.connect(f"model/{DB_FILE}", read_only=False) as con:
-                used = con.execute("SELECT DISTINCT analysis, dataset FROM Models").df()
-                used = list(zip(used["analysis"], used["dataset"]))
+                used = con.execute("SELECT DISTINCT analysis, data FROM Models").df()
+                used = list(zip(used["analysis"], used["data"]))
         except duckdb.CatalogException:
             used = []
 
@@ -209,7 +209,7 @@ def update_dataset(folder):
                 print("Update dataset aborted")
                 return
 
-        if confirm("Update analysis parameters?", force_confirmation=True):
+        if confirm("Update dataset parameters?", force_confirmation=True):
             # Ask the user for the parameters
             try:
                 info = query_dataset_parameters(info, analysis_name)
@@ -298,7 +298,7 @@ def update_model(folder):
             with open(matches["parameters_file"][option[3]], mode='r', encoding='utf-8') as handler:
                 params = json.load(handler)
 
-            params = query_model_parametrization(info, params)
+            params = query_object_parametrization("sklearn." + info["library"], params.get("params", {}))
             if params is None:
                 print("Model copy aborted")
                 return

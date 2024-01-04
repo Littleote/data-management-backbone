@@ -4,6 +4,25 @@
             "transform": "SELECT\n  COUNT(CASE WHEN centers.CONFESSI\u00d3 ILIKE 'Esgl\u00e9sia cat\u00f2lica' THEN 1 ELSE NULL END) AS num_catolic,\n  COUNT(CASE WHEN centers.CONFESSI\u00d3 ILIKE 'Esgl\u00e9sies Evang\u00e8liques' THEN 1 ELSE NULL END) AS num_evangelic,\n  CASE SUM(CASE WHEN centers.CONFESSI\u00d3 ILIKE 'Islam' THEN 1 ELSE 0 END) WHEN 0 THEN 'No' ELSE 'Yes' END AS is_there_islam,\n  MAX(im.inhabitants) AS inhabitants,\n  MAX(im.Foreign_immigrants_africa) AS immigrants_africa,\n  MAX(im.Foreign_immigrants_america) AS immigrants_america,\n  MAX(im.Foreign_immigrants_asia) AS immigrants_asia,\n  MAX(im.Foreign_immigrants_europe) AS immigrants_europe,\n  MAX(im.Foreign_immigrants_others) AS immigrants_others,\n  MAX(im.immigration_percentage_per_town) AS percentage_immigrants\nFROM immigration AS im\nINNER JOIN cult_centers AS centers ON im.municipality ILIKE centers.MUNICIPI\nGROUP BY im.municipality",
             "target": "is_there_islam",
             "split": 0.7
+        },
+        "max_foreign_log_normalized": {
+            "transform": "SELECT\n  COUNT(CASE WHEN centers.CONFESSI\u00d3 ILIKE 'Esgl\u00e9sia cat\u00f2lica' THEN 1 ELSE NULL END) AS num_catolic,\n  COUNT(CASE WHEN centers.CONFESSI\u00d3 ILIKE 'Esgl\u00e9sies Evang\u00e8liques' THEN 1 ELSE NULL END) AS num_evangelic,\n  CASE SUM(CASE WHEN centers.CONFESSI\u00d3 ILIKE 'Islam' THEN 1 ELSE 0 END) WHEN 0 THEN 'No' ELSE 'Yes' END AS is_there_islam,\n  MAX(im.inhabitants) AS inhabitants,\n  MAX(im.Foreign_immigrants_africa) AS immigrants_africa,\n  MAX(im.Foreign_immigrants_america) AS immigrants_america,\n  MAX(im.Foreign_immigrants_asia) AS immigrants_asia,\n  MAX(im.Foreign_immigrants_europe) AS immigrants_europe,\n  MAX(im.Foreign_immigrants_others) AS immigrants_others,\n  MAX(im.immigration_percentage_per_town) AS percentage_immigrants\nFROM immigration AS im\nINNER JOIN cult_centers AS centers ON im.municipality ILIKE centers.MUNICIPI\nGROUP BY im.municipality",
+            "target": "is_there_islam",
+            "split": 0.7,
+            "data_preparation": [
+                {
+                    "function": "numpy.log1p"
+                },
+                {
+                    "transform": "preprocessing.StandardScaler",
+                    "args": [],
+                    "kwargs": {
+                        "copy": true,
+                        "with_mean": true,
+                        "with_std": true
+                    }
+                }
+            ]
         }
     }
 }
