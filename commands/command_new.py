@@ -12,6 +12,7 @@ import duckdb
 import landing
 import formatted
 import trusted
+import data_quality
 import sandbox
 import feature_generation as fgeneration
 from models import Model
@@ -36,6 +37,8 @@ def new(kind, folder):
         new_dataset(folder)
     elif kind == "model":
         new_model(folder)
+    elif kind == "match":
+        new_match(folder)
     else:
         raise NotImplementedError(f"new {kind} not yet implemented")
 
@@ -47,7 +50,7 @@ def check_folders(folder):
 
 
 def new_pipeline(folder):
-    with tempfile.TemporaryDirectory() as tmp_folder, Path(tmp_folder):
+    with tempfile.TemporaryDirectory() as tmp_folder, Path(tmp_folder) as cwd:
         # Useful bits
         check_folders(tmp_folder)
         print("Press Ctrl + C at any moment to cancel.")
@@ -67,7 +70,8 @@ def new_pipeline(folder):
             return
 
         # Save
-        with open(os.path.join(folder, 'dataset_info', pipeline_name + '.json'),
+        cwd.move(folder)
+        with open(os.path.join('dataset_info', pipeline_name + '.json'),
                   mode='w', encoding='utf-8') as handler:
             json.dump(pipeline, handler, indent=4)
 
@@ -238,32 +242,39 @@ def new_pipeline_clening(pipeline, name):
     return pipeline
 
 
+def new_match(folder):
+    with Path(folder):
+        data_quality.define_new_match()
+        print("Your new match has been succesfully added")
+
+
 def new_table(folder):
-    # Introduce the new table and SQL code
-    name_table = input("Insert the name of the new table: ")
-    sql_code = input("Now insert the SQL code needed to create the new table: ")
+    with Path(folder):
+        # Introduce the new table and SQL code
+        name_table = input("Insert the name of the new table: ")
+        sql_code = input("Now insert the SQL code needed to create the new table: ")
 
-    # Define json path
-    file_path = os.path.join(folder, "exploitation", "tables.json")
+        # Define json path
+        file_path = os.path.join(folder, "exploitation", "tables.json")
 
-    # Open file and read data
-    with open(file_path, mode='r', encoding='utf-8') as file:
-        data = json.load(file)
+        # Open file and read data
+        with open(file_path, mode='r', encoding='utf-8') as file:
+            data = json.load(file)
 
-    # Define the new element
-    new_element = {
-        name_table: sql_code
-    }
+        # Define the new element
+        new_element = {
+            name_table: sql_code
+        }
 
-    # Add the new element to the data
-    data.update(new_element)
+        # Add the new element to the data
+        data.update(new_element)
 
-    # Open file and write the data with the new table
-    with open(file_path, mode='w', encoding='utf-8') as file:
-        json.dump(data, file, indent=4)
+        # Open file and write the data with the new table
+        with open(file_path, mode='w', encoding='utf-8') as file:
+            json.dump(data, file, indent=4)
 
-    # Confirmation
-    print("Your new table has been succesfully added")
+        # Confirmation
+        print("Your new table has been succesfully added")
 
 
 def new_analysis(folder):

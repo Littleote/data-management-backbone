@@ -47,7 +47,7 @@ def fetch(pipeline, folder):
             print(padded("Cleaning dataset"), end="\r")
             trusted.clean_data(pipeline_info, pipeline)
             print(padded("Performing data quality checks"), end="\r")
-            data_quality.check_quality(pipeline)
+            data_quality.perform_pipeline_matches(pipeline)
             print(padded("Generaiting exploitation tables"), end="\r")
             exploitation.to_exploitation()
             print(padded("Done"), end="\n")

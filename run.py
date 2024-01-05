@@ -7,7 +7,7 @@ import os
 import sys
 import argparse
 
-from commands import fetch, new, update, delete, view
+from commands import fetch, regenerate, new, update, delete, view
 
 from utils import Path, get_zones
 
@@ -25,10 +25,13 @@ def parse(args):
     action = arg_parser.add_mutually_exclusive_group(required=True)
     action.add_argument("--fetch", nargs='?', const=-1, metavar="DATASET"
                         , help="Fetch the latest version of a dataset")
+    action.add_argument("--regenerate", action='store_const', const="pipeline"
+                        , help="Regenerate all datasets with the latest configuration")
     action.add_argument("--new", type = str.lower,
-                        choices=["pipeline", "table", "analysis", "dataset", "model"]
+                        choices=["pipeline", "match", "table", "analysis", "dataset", "model"]
                         , help="""Create one of the following:
 a new dataset PIPELINE,
+a new MATCH between pipeline columns,
 a new exploitation TABLE,
 a new set of tables in sandbox for an ANALYSIS,
 a new transformation of sandbox tables into a DATASET,
@@ -36,8 +39,11 @@ a new MODEL to perform an analysis""")
     action.add_argument("--update", type = str.lower,
                         choices=["table", "analysis", "dataset", "model"]
                         , help="Update the parameters of the given object and rerun it")
-    action.add_argument("--delete", type = str.lower, choices=["pipeline", "table"]
-                        , help="Delete a dataset pipeline or an exploitation table query")
+    action.add_argument("--delete", type = str.lower, choices=["pipeline", "match", "table"]
+                        , help=""""Delete
+a dataset pipeline,
+a match between pipelines,
+or an exploitation table query""")
     action.add_argument("--view", choices=["formatted", "trusted", "exploitation", "model"]
                         , type = str.lower
                         , help="Visualize the values (table or metrics) in the specified zone")
@@ -49,6 +55,8 @@ def _main(args, folder):
     check_folders(folder)
     if args.fetch is not None:
         fetch(args.fetch, folder)
+    elif args.regenerate is not None:
+        regenerate(args.regenerate, folder)
     elif args.new is not None:
         new(args.new, folder)
     elif args.update is not None:

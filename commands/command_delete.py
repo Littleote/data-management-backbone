@@ -6,6 +6,8 @@
 import os
 import json
 
+import data_quality
+
 from utils import confirm, select
 
 def delete(kind, folder):
@@ -20,8 +22,13 @@ def delete(kind, folder):
         with open(file_path, mode='r', encoding='utf-8') as file:
             data = json.load(file)
         options = list(data.keys())
+    elif kind == "match":
+        options = data_quality.get_match_list()
 
     # Select options to delete
+    if len(options) <= 0:
+        print(f"No {kind} to delete")
+        return
     selected = []
     option = ""
     options = [no_opt] + options
@@ -34,7 +41,7 @@ def delete(kind, folder):
     # Confirm and delete
     if len(selected) > 0:
         sep = "', '"
-        print(f"Do you really want to delete '{sep.join(selected)}'")
+        print(f"Do you really want to delete '{sep.join(map(str, selected))}'")
         if not confirm(None, default=False):
             selected = []
     if len(selected) <= 0:
@@ -42,10 +49,14 @@ def delete(kind, folder):
 
     if kind == "pipeline":
         for option in selected:
+            data_quality.delete_pipeline_matches(option)
             os.remove(os.path.join(folder, "dataset_info", option))
     elif kind == "table":
         for option in selected:
             data.pop(option)
         with open(file_path, mode='w', encoding='utf-8') as file:
             json.dump(data, file, indent=4)
+    elif kind == "match":
+        matches = list(filter(lambda e: isinstance(e, dict), options))
+        data_quality.set_match_list(matches)
             

@@ -14,59 +14,77 @@ trusted_path = 'trusted/'
 info_path = 'dataset_info/'
 
 THRESHOLD_DISTANCE = 11
-
-def define_new_match():
-    target_list = os.listdir(info_path)
-    target_list = [target_item[:-5] for target_item in target_list if target_item[-5:] == ".json"]
-    print("Select the two datasets to match for the join with a data quality process:")
-    dataset_1 = select("dataset", target_list)
-    if dataset_1 is None:
-        raise RuntimeError("No dataset selected")
-    target_list.remove(dataset_1)
-    dataset_2 = select("dataset", target_list)
-    if dataset_2 is None:
-        raise RuntimeError("No dataset selected")
-
-    print(f"Processing the keys of {dataset_1} and {dataset_2}")
-
-    #For datset 1 choose key
-    print("Key of dataset 1:")
-    with open(info_path + dataset_1 + ".json", mode='r', encoding='utf-8') as handler:
-        dataset_1_info = json.load(handler)
-    keys_1 = dataset_1_info.get("keys", [])
-    key_1 = select("key", keys_1)
-    if key_1 is None:
-        raise RuntimeError("No key selected")
-
-    #For datset 2 choose key
-    print("Key of dataset 2:")
-    with open(info_path + dataset_2 + ".json", mode='r', encoding='utf-8') as handler:
-        dataset_2_info = json.load(handler)
-    keys_2 = dataset_2_info.get("keys", [])
-    key_2 = select("key", keys_2)
-    if key_2 is None:
-        raise RuntimeError("No key selected")
-    return {dataset_1: key_1, dataset_2: key_2}
+MATCH_TYPE = ["VARCHAR"]
 
 
-def check_quality(pipeline):
+def get_match_list(func=None):
     try:
         with open(trusted_path + "data_quality.json", mode='r', encoding='utf-8') as handler:
             matches = json.load(handler)
-            matches = [elem for elem in matches if pipeline in elem.keys()]
+            if func is not None:
+                matches = list(filter(func, matches))
     except FileNotFoundError:
         matches = []
-    for elem in matches:
+    return matches
+
+
+def set_match_list(matches):
+    with open(trusted_path + "data_quality.json", mode='w', encoding='utf-8') as handler:
+        json.dump(matches, handler, indent=4)
+
+
+def define_new_match():
+    pipes = os.listdir(info_path)
+    pipes = [pipe[:-5] for pipe in pipes if pipe[-5:] == ".json"]
+    with duckdb.connect(database=trusted_path + 'database.db', read_only=False) as con:
+        tables = con.execute("SHOW ALL TABLES").df()
+        populated = list(tables["name"])
+    target_list = [target for target in pipes if target in populated]
+
+    print("Select the two datasets to match for the join with a data quality process:")
+    datasets = []
+    for i in range(2):
+        datasets.append(select("dataset", target_list))
+        if datasets[-1] is None:
+            raise RuntimeError("No dataset selected")
+        target_list.remove(datasets[-1])
+
+    print(f"Select the columns to match between {datasets[0]} and {datasets[1]}")
+    match_rule = {}
+    for i, dataset in enumerate(datasets):
+        print(f"Columns of dataset {i + 1} ({dataset}):")
+        table = tables.loc[tables["name"] == dataset].iloc[0]
+        names = table["column_names"]
+        types = table["column_types"]
+        columns = [n for n, t in zip(names, types) if t in MATCH_TYPE]
+        column = select("column", columns)
+        if column is None:
+            raise RuntimeError("No column selected")
+        match_rule[dataset] = column
+
+    matches = get_match_list()
+    matches.append(match_rule)
+    set_match_list(matches)
+
+
+def delete_pipeline_matches(pipeline):
+    matches = get_match_list(lambda match: pipeline not in match.keys())
+    set_match_list(matches)
+
+
+def perform_pipeline_matches(pipeline):
+    matches = get_match_list(lambda match: pipeline in match.keys())
+    for match in matches:
         try:
-            match(elem)
+            perform_match(match)
         except (duckdb.CatalogException, duckdb.ParserException) as err:
-            datasets = list(elem.keys())
+            datasets = list(match.keys())
             print(f"Unable to macth table {datasets[0]} with {datasets[1]}")
             print("Causes:")
             print(*err.args, sep="\n")
 
 
-def match(pair):
+def perform_match(pair):
     dataset_1, dataset_2 = pair.keys()
     key_1, key_2 = pair[dataset_1], pair[dataset_2]
     with duckdb.connect(database=trusted_path + 'database.db', read_only=False) as con:
@@ -103,12 +121,6 @@ def match(pair):
 
     # Extract the unique actual_names with the lowest scores
     mapping_list = list(mapping_dict.values())
-    mapping_list = sorted(mapping_list, key=lambda x: x['score'])
-
-    # Print the result
-    for entry in mapping_list:
-        print(entry)
-    print(len(mapping_list), len(llista_2), len(llista_1))
 
     # Connect to database
     with duckdb.connect(database=trusted_path + 'database.db', read_only=False) as con:
