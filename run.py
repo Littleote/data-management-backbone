@@ -7,7 +7,7 @@ import os
 import sys
 import argparse
 
-from commands import fetch, regenerate, new, update, delete, view
+from commands import fetch, regenerate, new, update, delete, view, test
 
 from utils import Path, get_zones
 
@@ -47,6 +47,8 @@ or an exploitation table query""")
     action.add_argument("--view", choices=["formatted", "trusted", "exploitation", "model"]
                         , type = str.lower
                         , help="Visualize the values (table or metrics) in the specified zone")
+    action.add_argument("--test", action='store_const', const="input"
+                        , help="Test a model against an input")
     return arg_parser.parse_args(args)
 
 
@@ -65,6 +67,8 @@ def _main(args, folder):
         delete(args.delete, folder)
     elif args.view is not None:
         view(args.view, folder)
+    elif args.test is not None:
+        test(args.test, folder)
 
 
 if __name__ == "__main__":

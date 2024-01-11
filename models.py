@@ -253,12 +253,12 @@ class Model():
         return self
 
     def fit(self):
-        self._load_data()
+        self.load_data()
         train_model(self.model, self.dataset["target"], self.train)
         return self
 
     def validate(self):
-        self._load_data()
+        self.load_data()
         model_type = self.analysis["type"]
         model_target = self.dataset["target"]
         truth, pred, prob = test_model(self.model, model_type, model_target, self.test)
@@ -279,7 +279,7 @@ class Model():
         new.metrics = final_metrics
         return new
 
-    def _load_data(self):
+    def load_data(self):
         if self.train is None or self.test is None:
             self.train, self.test = load_data(self.info)
     
